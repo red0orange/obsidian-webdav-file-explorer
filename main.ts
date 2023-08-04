@@ -16,9 +16,9 @@ import {
 import type {
     WebdavConfig,
 } from "./baseTypes";
-// import {
-//     fromWebdavItemToRemoteItem
-// } from "./remoteForWebdav";
+import {
+    fromWebdavItemToRemoteItem
+} from "./remoteForWebdav";
 
 import { Queue } from "@fyears/tsqueue";
 import chunk from "lodash/chunk";
@@ -40,7 +40,6 @@ interface FilePath {
     basename: string;
 }
 
-import * as _ from 'lodash';
 function createFileTree(files: any[]) {
     // 创建树的根
     const fileTree: any = {};
@@ -209,47 +208,67 @@ const AliyunListViewType = 'aliyun-driver';
 class AliyunFilesListView extends ItemView {
     private readonly plugin: AliyunDriverConnectorPlugin;
     private data: AliyunDriverData;
-    private markdownFiles: TFile[] = [];
 
-    constructor(leaf: WorkspaceLeaf, plugin: AliyunDriverConnectorPlugin, data: AliyunDriverData) {
+    public fileTreeData: any = {};
+
+    constructor(
+        leaf: WorkspaceLeaf,
+        plugin: AliyunDriverConnectorPlugin,
+        data: AliyunDriverData,
+        fileTree: any = {},
+    ) {
         super(leaf);
 
         this.plugin = plugin;
         this.data = data;
-
-        this.markdownFiles = this.app.vault.getMarkdownFiles();
+        this.fileTreeData = fileTree;
     }
 
-    public async onOpen(): Promise<void> {
-        // 清空 view 的内容
-        this.contentEl.empty();
-
-        // 以 tree-view 的形式展示所有的 markdown 文件和它们的标题
-        this.markdownFiles.forEach(file => {
-            const fileDiv = this.contentEl.createDiv();
-            fileDiv.setText(file.basename);
-
-            this.app.vault.read(file).then(content => {
-                const titleLines = content.split('\n').filter(line => line.startsWith('# '));
-
-                titleLines.forEach(line => {
-                    const titleDiv = fileDiv.createDiv();
-                    titleDiv.setText(line);
-                });
-            });
-        });
-    }
-
-    public getViewType(): string {
+    getViewType(): string {
         return AliyunListViewType;
     }
 
-    public getDisplayText(): string {
-        return 'Aliyun Files';
+    getDisplayText(): string {
+        return "Aliyun driver";
     }
 
-    public getIcon(): string {
-        return 'list';
+    getIcon(): string {
+        return "folder";
+    }
+
+    onload() {
+        super.onload();
+        this.draw();
+    }
+
+    async onOpen() {
+        this.draw();
+    }
+
+    draw() {
+        this.containerEl.empty();
+        this.containerEl.addClass('file-explorer-view');
+
+        let rootUl = this.containerEl.createEl('ul', {cls: 'file-list'});
+        this.constructList(this.fileTreeData, rootUl);
+    }
+
+    constructList(data: any, parentEl: any) {
+        for (const key in data) {
+            if (data[key].type === "directory") {
+                let dirLi = parentEl.createEl('li', {cls: 'file-list-item dir'});
+                dirLi.createEl('span', {text: key, cls: 'dir-name'});
+
+                let childUl = dirLi.createEl('ul', {cls: 'file-list'});
+                this.constructList(data[key], childUl);
+            } else if (data[key].type === "file"){ 
+                let fileLi = parentEl.createEl('li', {cls: 'file-list-item file'});
+                let fileEl = fileLi.createEl('span', { text: key, cls: 'file-name' });
+                // fileEl.addEventListener('click', () => {
+                //     this.app.workspace.openLinkText(key, "/", true);
+                // });
+            }
+        }
     }
 
     public onHeaderMenu(menu: Menu): void {
@@ -303,11 +322,15 @@ export default class AliyunDriverConnectorPlugin extends Plugin {
         // webdav client check connectivity
         console.log(this.webdavClient.checkConnectivity());
         console.log(this.webdavClient.listFromRemote("auto_1"));
+        const fileTree = await this.webdavClient.listFromRemote("auto_1");
+        const [uniqueMember] = Object.values(fileTree);
 
         // 注册 view
+        this.addStyle();
+
         this.registerView(
             AliyunListViewType,
-            (leaf) => (this.view = new AliyunFilesListView(leaf, this, this.data))
+            (leaf) => (this.view = new AliyunFilesListView(leaf, this, this.data, uniqueMember))
         )
 
         // 注册打开 View 的命令
@@ -354,6 +377,39 @@ export default class AliyunDriverConnectorPlugin extends Plugin {
 
     onunload() {
         (this.app.workspace as any).unregisterHoverLinkSource(AliyunListViewType);
+    }
+
+    addStyle() {
+        let styleEl = document.createElement('style');
+        styleEl.innerHTML = `
+            .file-explorer-view {
+                padding: 10px;
+                font-size: 14px;
+            }
+            .file-explorer-view .dir-name {
+                color: #2196f3;
+                cursor: pointer;
+                font-weight: 600;
+            }
+            .file-explorer-view .file-name {
+                color: #333;
+                cursor: pointer;
+            }
+            .file-explorer-view ul.file-list {
+                list-style: none;
+                padding-left: 20px;
+            }
+            .file-explorer-view ul.file-list li.file-list-item {
+                margin-bottom: 5px;
+            }
+            .file-explorer-view ul.file-list li.file-list-item.dir:before {
+                content: '📁 ';
+            }
+            .file-explorer-view ul.file-list li.file-list-item.file:before {
+                content: '📄 ';
+            }
+        `;
+        document.head.appendChild(styleEl);
     }
 
     public redraw = async (): Promise<void> => {
