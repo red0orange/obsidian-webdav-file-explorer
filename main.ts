@@ -1,24 +1,28 @@
-import { 
-    App, 
+import {
+    App,
     TFile,
-    Editor, 
-    MarkdownView, 
-    Modal, 
-    Notice, 
-    Plugin, 
-    PluginSettingTab, 
+    Editor,
+    MarkdownView,
+    Modal,
+    Notice,
+    Plugin,
+    PluginSettingTab,
     Setting,
     ItemView,
-    WorkspaceLeaf, 
+    WorkspaceLeaf,
     Menu
 } from 'obsidian';
 
 import type {
-  WebdavConfig,
+    WebdavConfig,
 } from "./baseTypes";
-import {
-     fromWebdavItemToRemoteItem
-} from "./remoteForWebdav";
+// import {
+//     fromWebdavItemToRemoteItem
+// } from "./remoteForWebdav";
+
+import { Queue } from "@fyears/tsqueue";
+import chunk from "lodash/chunk";
+import flatten from "lodash/flatten";
 
 import { AuthType, BufferLike, createClient } from "webdav/web";
 export type { WebDAVClient } from "webdav/web";
@@ -36,9 +40,45 @@ interface FilePath {
     basename: string;
 }
 
+import * as _ from 'lodash';
+function createFileTree(files: any[]) {
+    // 创建树的根
+    const fileTree: any = {};
+
+    // 为每个文件和目录在树中创建位置
+    for (const file of files) {
+        const parts = file.filename.split('/');
+        let currentLocation = fileTree;
+
+        // 跳过空字符串（第一个斜杠之前的部分）
+        for (let i = 1; i < parts.length; i++) {
+            const part = parts[i];
+
+            // 如果我们还没有到达文件名，则创建或导航到目录
+            if (i < parts.length - 1) {
+                if (!currentLocation[part]) {
+                    currentLocation[part] = {};
+                }
+
+                currentLocation = currentLocation[part];
+            }
+
+            // 如果我们到达了文件名，则添加文件
+            else {
+                currentLocation[part] = file;
+            }
+        }
+    }
+
+    return fileTree;
+}
+
+
 class MyWebdavClient {
     client: WebDAVClient
     webdavConfig: WebdavConfig
+
+    flag: boolean = false;
 
     constructor(
     ) {
@@ -55,13 +95,74 @@ class MyWebdavClient {
             headers: headers,
             authType: AuthType.Password,
         });
+        this.flag = true;
     }
 
-    listFromRemote = async () => {  // 函数：获取远程文件夹的文件列表
-        const directoryItems = await this.client.getDirectoryContents("/");
+    listFromRemote = async (
+        depth: string,
+    ) => {  // 函数：获取远程文件夹的文件列表
+        const remotePath = this.webdavConfig.remoteBaseDir || '/';
+
+        let contents = [] as FileStat[];
+        if (depth === "auto_1" || depth === "manual_1") {
+            // the remote doesn't support infinity propfind,
+            // we need to do a bfs here
+            const q = new Queue([`/${remotePath}`]);
+            const CHUNK_SIZE = 10;
+            while (q.length > 0) {
+                const itemsToFetch = [];
+                while (q.length > 0) {
+                    itemsToFetch.push(q.pop());
+                }
+                const itemsToFetchChunks = chunk(itemsToFetch, CHUNK_SIZE);
+                // log.debug(itemsToFetchChunks);
+                const subContents = [] as FileStat[];
+                for (const singleChunk of itemsToFetchChunks) {
+                    const r = singleChunk.map((x) => {
+                        return this.client.getDirectoryContents(x, {
+                            deep: false,
+                            details: false /* no need for verbose details here */,
+                            // TODO: to support .obsidian,
+                            // we need to load all files including dot,
+                            // anyway to reduce the resources?
+                            // glob: "/**" /* avoid dot files by using glob */,
+                        }) as Promise<FileStat[]>;
+                    });
+                    const r2 = flatten(await Promise.all(r));
+                    subContents.push(...r2);
+                }
+                for (let i = 0; i < subContents.length; ++i) {
+                    const f = subContents[i];
+                    contents.push(f);
+                    if (f.type === "directory") {
+                        q.push(f.filename);
+                    }
+                }
+            }
+        } else {
+            // the remote supports infinity propfind
+            contents = (await this.client.getDirectoryContents(
+                `/${remotePath}`,
+                {
+                    deep: true,
+                    details: false /* no need for verbose details here */,
+                    // TODO: to support .obsidian,
+                    // we need to load all files including dot,
+                    // anyway to reduce the resources?
+                    // glob: "/**" /* avoid dot files by using glob */,
+                }
+            )) as FileStat[];
+        }
+        const fileTree = createFileTree(contents);
+        console.log(fileTree);
+        return fileTree;
     }
 
     checkConnectivity = async (callbackFunc?: any) => { // 函数：检查是否能够连接到 WebDAV 服务器
+        if (!this.flag) {
+            console.log("Error: webdav client is not initialized!");
+            return;
+        }
         // 检查 address
         if (
             !(
@@ -110,7 +211,7 @@ class AliyunFilesListView extends ItemView {
     private data: AliyunDriverData;
     private markdownFiles: TFile[] = [];
 
-    constructor(leaf: WorkspaceLeaf, plugin: AliyunDriverConnectorPlugin, data:AliyunDriverData) {
+    constructor(leaf: WorkspaceLeaf, plugin: AliyunDriverConnectorPlugin, data: AliyunDriverData) {
         super(leaf);
 
         this.plugin = plugin;
@@ -127,10 +228,10 @@ class AliyunFilesListView extends ItemView {
         this.markdownFiles.forEach(file => {
             const fileDiv = this.contentEl.createDiv();
             fileDiv.setText(file.basename);
-            
+
             this.app.vault.read(file).then(content => {
                 const titleLines = content.split('\n').filter(line => line.startsWith('# '));
-                
+
                 titleLines.forEach(line => {
                     const titleDiv = fileDiv.createDiv();
                     titleDiv.setText(line);
@@ -154,11 +255,11 @@ class AliyunFilesListView extends ItemView {
     public onHeaderMenu(menu: Menu): void {
         menu.addItem((item) => {
             item
-            .setTitle('Upload')
-            .setIcon('upload')
-            .onClick(async () => {
-                console.log('upload');
-            });
+                .setTitle('Upload')
+                .setIcon('upload')
+                .onClick(async () => {
+                    console.log('upload');
+                });
         });
     }
 
@@ -180,8 +281,8 @@ export default class AliyunDriverConnectorPlugin extends Plugin {
     public view: AliyunFilesListView;
     public webdavClient: MyWebdavClient;
 
-	async onload() {
-		await this.loadData();
+    async onload() {
+        await this.loadData();
 
         // 终端输出插件版本
         console.log('Aliyun Driver Connector: Loading plugin v' + this.manifest.version);
@@ -195,11 +296,13 @@ export default class AliyunDriverConnectorPlugin extends Plugin {
             password: 'admin',
             authType: 'basic',
             manualRecursive: false,
+            remoteBaseDir: '2023_下半年',
         };
         this.webdavClient.init(DefaultWebdavConfig);
 
         // webdav client check connectivity
         console.log(this.webdavClient.checkConnectivity());
+        console.log(this.webdavClient.listFromRemote("auto_1"));
 
         // 注册 view
         this.registerView(
@@ -231,27 +334,27 @@ export default class AliyunDriverConnectorPlugin extends Plugin {
 
         // 当 layout 准备好时，构建 view
         if (this.app.workspace.layoutReady) {
-            this.initView();    
+            this.initView();
         } else {
             this.registerEvent(this.app.workspace.on('layout-ready', this.initView));
         }
 
-		// 注册设置页面
-		this.addSettingTab(new AliyunDriverConnectorSettingTab(this.app, this));
+        // 注册设置页面
+        this.addSettingTab(new AliyunDriverConnectorSettingTab(this.app, this));
 
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			console.log('click', evt);
-		});
+        // If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
+        // Using this function will automatically remove the event listener when this plugin is disabled.
+        this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
+            console.log('click', evt);
+        });
 
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
-	}
+        // When registering intervals, this function will automatically clear the interval when the plugin is disabled.
+        this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
+    }
 
-	onunload() {
+    onunload() {
         (this.app.workspace as any).unregisterHoverLinkSource(AliyunListViewType);
-	}
+    }
 
     public redraw = async (): Promise<void> => {
         // webdav client reinit
@@ -296,7 +399,7 @@ class AliyunDriverConnectorSettingTab extends PluginSettingTab {
     public display(): void {
         const { containerEl } = this;
         containerEl.empty();
-        
+
         // 标题
         containerEl.createEl('h2', { text: 'Aliyun Driver Connector Settings' });
         // aliyun driver webdav 配置
@@ -336,22 +439,22 @@ class AliyunDriverConnectorSettingTab extends PluginSettingTab {
                     this.plugin.redraw();
                 }
             });
-        
+
     }
 }
 
 class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
+    constructor(app: App) {
+        super(app);
+    }
 
-	onOpen() {
-		const {contentEl} = this;
-		contentEl.setText('Woah!');
-	}
+    onOpen() {
+        const { contentEl } = this;
+        contentEl.setText('Woah!');
+    }
 
-	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
-	}
+    onClose() {
+        const { contentEl } = this;
+        contentEl.empty();
+    }
 }

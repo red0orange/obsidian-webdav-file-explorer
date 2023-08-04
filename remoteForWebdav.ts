@@ -448,7 +448,6 @@ export const listFromRemote = async (
             fromWebdavItemToRemoteItem(x, client.remoteBaseDir)
         ),
     };
-    console.log("listFromRemote");
 };
 
 const downloadFromRemoteRaw = async (
