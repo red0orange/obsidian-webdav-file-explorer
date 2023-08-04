@@ -16,7 +16,19 @@ import {
 import type {
   WebdavConfig,
 } from "./baseTypes";
-import * as webdav from "./remoteForWebdav";
+import {
+     fromWebdavItemToRemoteItem
+} from "./remoteForWebdav";
+
+import { AuthType, BufferLike, createClient } from "webdav/web";
+export type { WebDAVClient } from "webdav/web";
+import type {
+    FileStat,
+    WebDAVClient,
+    RequestOptionsWithState,
+    Response,
+    ResponseDataDetailed,
+} from "webdav/web";
 
 // Remember to rename these classes and interfaces!
 interface FilePath {
@@ -25,33 +37,69 @@ interface FilePath {
 }
 
 class MyWebdavClient {
-    readonly webdavClient: webdav.WrappedWebdavClient
+    client: WebDAVClient
     webdavConfig: WebdavConfig
 
     constructor(
-        webdavConfig: WebdavConfig, 
-        saveUpdatedConfigFunc?: () => Promise<any>
     ) {
-        this.webdavConfig = webdavConfig;
-        // const remoteBaseDir =this.webdavConfig.remoteBaseDir || '';
-        const remoteBaseDir = '/';
-        this.webdavClient = webdav.getWebdavClient(
-            this.webdavConfig,
-            remoteBaseDir,
-            saveUpdatedConfigFunc || (() => Promise.resolve())
-        )
     }
 
-    getRemoteMeta = async (fileOrFolderPath: string) => {  // 函数：获取远程文件或文件夹的元数据
-        return await webdav.getRemoteMeta(this.webdavClient, fileOrFolderPath);
-    };
+    init = async (webdavConfig: WebdavConfig) => {
+        this.webdavConfig = webdavConfig;
+        const headers = {
+            "Cache-Control": "no-cache",
+        };
+        this.client = createClient(webdavConfig.address, {
+            username: webdavConfig.username,
+            password: webdavConfig.password,
+            headers: headers,
+            authType: AuthType.Password,
+        });
+    }
 
     listFromRemote = async () => {  // 函数：获取远程文件夹的文件列表
-        return await webdav.listFromRemote(this.webdavClient);
+        const directoryItems = await this.client.getDirectoryContents("/");
     }
 
     checkConnectivity = async (callbackFunc?: any) => { // 函数：检查是否能够连接到 WebDAV 服务器
-        return await webdav.checkConnectivity(this.webdavClient, callbackFunc);
+        // 检查 address
+        if (
+            !(
+                this.webdavConfig.address.startsWith("http://") ||
+                this.webdavConfig.address.startsWith("https://")
+            )
+        ) {
+            const err = "Error: the url should start with http(s):// but it does not!";
+            console.log(err);
+            if (callbackFunc !== undefined) {
+                callbackFunc(err);
+            }
+            return false;
+        }
+
+        // 检查连接性
+        try {
+            const remotePath = this.webdavConfig.remoteBaseDir || '';
+            const res = (await this.client.stat(remotePath, {
+                details: false,
+            })) as FileStat;
+            const results = fromWebdavItemToRemoteItem(res, remotePath);
+            if (results === undefined) {
+                const err = "results is undefined";
+                console.log(err);
+                if (callbackFunc !== undefined) {
+                    callbackFunc(err);
+                }
+                return false;
+            }
+            return true;
+        } catch (err) {
+            console.log(err);
+            if (callbackFunc !== undefined) {
+                callbackFunc(err);
+            }
+            return false;
+        }
     }
 }
 
@@ -115,8 +163,6 @@ class AliyunFilesListView extends ItemView {
     }
 
     public readonly redraw = (): void => {
-        console.log('redraw');
-        // TODO
     }
 
 }
@@ -140,15 +186,9 @@ export default class AliyunDriverConnectorPlugin extends Plugin {
         // 终端输出插件版本
         console.log('Aliyun Driver Connector: Loading plugin v' + this.manifest.version);
 
-        // const client = createClient('http://red0orange.plus:8080', {
-        //     authType: AuthType.Digest,
-        //     username: "admin",
-        //     password: "admin"
-        // });
-        // const directoryItems = await client.getDirectoryContents("/");
-        // console.log(directoryItems);
+        this.webdavClient = new MyWebdavClient();
 
-        // webdav client
+        // webdav client init
         const DefaultWebdavConfig: WebdavConfig = {
             address: 'http://red0orange.plus:8080',
             username: 'admin',
@@ -156,13 +196,10 @@ export default class AliyunDriverConnectorPlugin extends Plugin {
             authType: 'basic',
             manualRecursive: false,
         };
-        this.webdavClient = new MyWebdavClient(DefaultWebdavConfig)
+        this.webdavClient.init(DefaultWebdavConfig);
 
+        // webdav client check connectivity
         console.log(this.webdavClient.checkConnectivity());
-
-        console.log(this.webdavClient.getRemoteMeta('/'));
-
-        console.log(this.webdavClient.listFromRemote());
 
         // 注册 view
         this.registerView(
@@ -216,6 +253,14 @@ export default class AliyunDriverConnectorPlugin extends Plugin {
         (this.app.workspace as any).unregisterHoverLinkSource(AliyunListViewType);
 	}
 
+    public redraw = async (): Promise<void> => {
+        // webdav client reinit
+        await this.webdavClient.init(this.webdavClient.webdavConfig);
+
+        // view 重绘
+        await this.view.redraw();
+    }
+
     private readonly initView = async (): Promise<void> => {
         let leaf: WorkspaceLeaf | undefined;
         for (leaf of this.app.workspace.getLeavesOfType(AliyunListViewType)) {
@@ -264,8 +309,7 @@ class AliyunDriverConnectorSettingTab extends PluginSettingTab {
                 text.setValue(this.plugin.webdavClient.webdavConfig.address.toString());
                 text.inputEl.onblur = (e: FocusEvent) => {
                     this.plugin.webdavClient.webdavConfig.address = (e.target as HTMLInputElement).value;
-                    this.plugin.view.redraw();
-                    console.log(this.plugin.webdavClient.webdavConfig);
+                    this.plugin.redraw();
                 }
             });
         new Setting(containerEl)
@@ -277,8 +321,7 @@ class AliyunDriverConnectorSettingTab extends PluginSettingTab {
                 text.setValue(this.plugin.webdavClient.webdavConfig.username);
                 text.inputEl.onblur = (e: FocusEvent) => {
                     this.plugin.webdavClient.webdavConfig.username = (e.target as HTMLInputElement).value;
-                    this.plugin.view.redraw();
-                    console.log(this.plugin.webdavClient.webdavConfig);
+                    this.plugin.redraw();
                 }
             });
         new Setting(containerEl)
@@ -290,8 +333,7 @@ class AliyunDriverConnectorSettingTab extends PluginSettingTab {
                 text.setValue(this.plugin.webdavClient.webdavConfig.password);
                 text.inputEl.onblur = (e: FocusEvent) => {
                     this.plugin.webdavClient.webdavConfig.password = (e.target as HTMLInputElement).value;
-                    this.plugin.view.redraw();
-                    console.log(this.plugin.webdavClient.webdavConfig);
+                    this.plugin.redraw();
                 }
             });
         

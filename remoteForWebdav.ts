@@ -150,7 +150,7 @@ const getNormPath = (fileOrFolderPath: string, remoteBaseDir: string) => {
     return fileOrFolderPath.slice(`/${remoteBaseDir}/`.length);
 };
 
-const fromWebdavItemToRemoteItem = (x: FileStat, remoteBaseDir: string) => {
+export const fromWebdavItemToRemoteItem = (x: FileStat, remoteBaseDir: string) => {
     let key = getNormPath(x.filename, remoteBaseDir);
     if (x.type === "directory" && !key.endsWith("/")) {
         key = `${key}/`;
