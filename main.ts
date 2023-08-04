@@ -26,14 +26,15 @@ interface FilePath {
 
 class MyWebdavClient {
     readonly webdavClient: webdav.WrappedWebdavClient
-    readonly webdavConfig: WebdavConfig
+    webdavConfig: WebdavConfig
 
     constructor(
         webdavConfig: WebdavConfig, 
         saveUpdatedConfigFunc?: () => Promise<any>
     ) {
         this.webdavConfig = webdavConfig;
-        const remoteBaseDir = webdavConfig.remoteBaseDir || '';
+        // const remoteBaseDir =this.webdavConfig.remoteBaseDir || '';
+        const remoteBaseDir = '/';
         this.webdavClient = webdav.getWebdavClient(
             this.webdavConfig,
             remoteBaseDir,
@@ -139,10 +140,34 @@ export default class AliyunDriverConnectorPlugin extends Plugin {
         // 终端输出插件版本
         console.log('Aliyun Driver Connector: Loading plugin v' + this.manifest.version);
 
+        // const client = createClient('http://red0orange.plus:8080', {
+        //     authType: AuthType.Digest,
+        //     username: "admin",
+        //     password: "admin"
+        // });
+        // const directoryItems = await client.getDirectoryContents("/");
+        // console.log(directoryItems);
+
+        // webdav client
+        const DefaultWebdavConfig: WebdavConfig = {
+            address: 'http://red0orange.plus:8080',
+            username: 'admin',
+            password: 'admin',
+            authType: 'basic',
+            manualRecursive: false,
+        };
+        this.webdavClient = new MyWebdavClient(DefaultWebdavConfig)
+
+        console.log(this.webdavClient.checkConnectivity());
+
+        console.log(this.webdavClient.getRemoteMeta('/'));
+
+        console.log(this.webdavClient.listFromRemote());
+
         // 注册 view
         this.registerView(
             AliyunListViewType,
-            (leaf) => (this.view = new AliyunFilesListView(leaf, this))
+            (leaf) => (this.view = new AliyunFilesListView(leaf, this, this.data))
         )
 
         // 注册打开 View 的命令
@@ -240,6 +265,7 @@ class AliyunDriverConnectorSettingTab extends PluginSettingTab {
                 text.inputEl.onblur = (e: FocusEvent) => {
                     this.plugin.webdavClient.webdavConfig.address = (e.target as HTMLInputElement).value;
                     this.plugin.view.redraw();
+                    console.log(this.plugin.webdavClient.webdavConfig);
                 }
             });
         new Setting(containerEl)
@@ -252,6 +278,7 @@ class AliyunDriverConnectorSettingTab extends PluginSettingTab {
                 text.inputEl.onblur = (e: FocusEvent) => {
                     this.plugin.webdavClient.webdavConfig.username = (e.target as HTMLInputElement).value;
                     this.plugin.view.redraw();
+                    console.log(this.plugin.webdavClient.webdavConfig);
                 }
             });
         new Setting(containerEl)
@@ -264,8 +291,10 @@ class AliyunDriverConnectorSettingTab extends PluginSettingTab {
                 text.inputEl.onblur = (e: FocusEvent) => {
                     this.plugin.webdavClient.webdavConfig.password = (e.target as HTMLInputElement).value;
                     this.plugin.view.redraw();
+                    console.log(this.plugin.webdavClient.webdavConfig);
                 }
             });
+        
     }
 }
 

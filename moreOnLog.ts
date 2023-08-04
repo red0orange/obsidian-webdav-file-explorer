@@ -10,25 +10,25 @@ const log2 = origLog.getLogger("rs-default");
 const originalFactory = log2.methodFactory;
 
 export const applyLogWriterInplace = function (writer: (...msg: any[]) => any) {
-  log2.methodFactory = function (
-    methodName: string,
-    logLevel: LogLevelNumbers,
-    loggerName: string | symbol
-  ) {
-    const rawMethod = originalFactory(methodName, logLevel, loggerName);
+    log2.methodFactory = function (
+        methodName: string,
+        logLevel: LogLevelNumbers,
+        loggerName: string | symbol
+    ) {
+        const rawMethod = originalFactory(methodName, logLevel, loggerName);
 
-    return function (...msg: any[]) {
-      rawMethod.apply(undefined, msg);
-      writer(...msg);
+        return function (...msg: any[]) {
+            rawMethod.apply(undefined, msg);
+            writer(...msg);
+        };
     };
-  };
 
-  log2.setLevel(log2.getLevel());
+    log2.setLevel(log2.getLevel());
 };
 
 export const restoreLogWritterInplace = () => {
-  log2.methodFactory = originalFactory;
-  log2.setLevel(log2.getLevel());
+    log2.methodFactory = originalFactory;
+    log2.setLevel(log2.getLevel());
 };
 
 export const log = log2;
