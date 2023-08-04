@@ -10,7 +10,10 @@ import {
     Setting,
     ItemView,
     WorkspaceLeaf,
-    Menu
+    Menu,
+    EditorPosition,
+    EditorSuggestContext,
+    EditorSuggestTriggerInfo
 } from 'obsidian';
 
 import type {
@@ -249,20 +252,20 @@ class AliyunFilesListView extends ItemView {
         this.containerEl.empty();
         this.containerEl.addClass('file-explorer-view');
 
-        let rootUl = this.containerEl.createEl('ul', {cls: 'file-list'});
+        let rootUl = this.containerEl.createEl('ul', { cls: 'file-list' });
         this.constructList(this.fileTreeData, rootUl);
     }
 
     constructList(data: any, parentEl: any) {
         for (const key in data) {
             if (data[key].type === "directory") {
-                let dirLi = parentEl.createEl('li', {cls: 'file-list-item dir'});
-                dirLi.createEl('span', {text: key, cls: 'dir-name'});
+                let dirLi = parentEl.createEl('li', { cls: 'file-list-item dir' });
+                dirLi.createEl('span', { text: key, cls: 'dir-name' });
 
-                let childUl = dirLi.createEl('ul', {cls: 'file-list'});
+                let childUl = dirLi.createEl('ul', { cls: 'file-list' });
                 this.constructList(data[key], childUl);
-            } else if (data[key].type === "file"){ 
-                let fileLi = parentEl.createEl('li', {cls: 'file-list-item file'});
+            } else if (data[key].type === "file") {
+                let fileLi = parentEl.createEl('li', { cls: 'file-list-item file' });
                 let fileEl = fileLi.createEl('span', { text: key, cls: 'file-name' });
                 // fileEl.addEventListener('click', () => {
                 //     this.app.workspace.openLinkText(key, "/", true);
