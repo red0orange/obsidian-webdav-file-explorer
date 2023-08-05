@@ -309,7 +309,7 @@ class AliyunFilesListView extends ItemView {
         for (const key in data) {
             if (data[key].type === "directory") {
                 let dirLi = parentEl.createEl('li', { cls: 'file-list-item dir' });
-                let indicator = dirLi.createEl('span', { text: '>', cls: 'indicator' }); // 添加指示符
+                let indicator = dirLi.createEl('span', { cls: 'indicator folder-indicator closed' }); // 添加指示符
                 let dirSpan = dirLi.createEl('span', { text: key, cls: 'dir-name' });
 
                 dirSpan.addEventListener('contextmenu', (event: MouseEvent) => {
@@ -331,10 +331,12 @@ class AliyunFilesListView extends ItemView {
                     event.stopPropagation(); // 阻止事件冒泡
                     if (childUl.style.display === 'none') {
                         childUl.style.display = 'block';
-                        indicator.textContent = 'v'; // 改变指示符
+                        indicator.classList.remove('closed');
+                        indicator.classList.add('open'); // 改变指示符
                     } else {
                         childUl.style.display = 'none';
-                        indicator.textContent = '>'; // 改变指示符
+                        indicator.classList.remove('open');
+                        indicator.classList.add('closed'); // 改变指示符
                     }
                 });
 
@@ -403,9 +405,6 @@ export default class AliyunDriverConnectorPlugin extends Plugin {
         const fileTree = await this.webdavClient.listFromRemote("auto_1");
         const [uniqueMember] = Object.values(fileTree);
 
-        // 注册 view
-        this.addStyle();
-
         this.registerView(
             AliyunListViewType,
             (leaf) => (this.view = new AliyunFilesListView(leaf, this, this.data, uniqueMember))
@@ -455,39 +454,6 @@ export default class AliyunDriverConnectorPlugin extends Plugin {
 
     onunload() {
         (this.app.workspace as any).unregisterHoverLinkSource(AliyunListViewType);
-    }
-
-    addStyle() {
-        let styleEl = document.createElement('style');
-        styleEl.innerHTML = `
-            .file-explorer-view {
-                padding: 10px;
-                font-size: 14px;
-            }
-            .file-explorer-view .dir-name {
-                color: #2196f3;
-                cursor: pointer;
-                font-weight: 600;
-            }
-            .file-explorer-view .file-name {
-                color: #333;
-                cursor: pointer;
-            }
-            .file-explorer-view ul.file-list {
-                list-style: none;
-                padding-left: 20px;
-            }
-            .file-explorer-view ul.file-list li.file-list-item {
-                margin-bottom: 5px;
-            }
-            .file-explorer-view ul.file-list li.file-list-item.dir:before {
-                content: '📁 ';
-            }
-            .file-explorer-view ul.file-list li.file-list-item.file:before {
-                content: '📄 ';
-            }
-        `;
-        document.head.appendChild(styleEl);
     }
 
     public redraw = async (): Promise<void> => {

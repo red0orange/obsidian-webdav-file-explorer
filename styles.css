@@ -6,3 +6,42 @@ available in the app when your plugin is enabled.
 If your plugin does not need CSS, delete this file.
 
 */
+.file-explorer-view {
+    padding: 10px;
+    font-size: 14px;
+}
+.file-explorer-view .dir-name {
+    color: #2196f3;
+    cursor: pointer;
+    font-weight: 600;
+}
+.file-explorer-view .file-name {
+    color: #333;
+    cursor: pointer;
+}
+.file-explorer-view ul.file-list {
+    list-style: none;
+    padding-left: 20px;
+}
+.file-explorer-view ul.file-list li.file-list-item {
+    margin-bottom: 5px;
+}
+.file-explorer-view ul.file-list li.file-list-item.dir:before {
+    content: '📁 ';
+}
+.file-explorer-view ul.file-list li.file-list-item.file:before {
+    content: '📄 ';
+}
+.folder-indicator {
+    display: inline-block;
+    font-size: 12px;  /* 调整大小 */
+    color: grey;      /* 调整颜色 */
+}
+
+.folder-indicator.closed {
+    content: '▶';
+}
+
+.folder-indicator.open {
+    content: '▼';
+}
