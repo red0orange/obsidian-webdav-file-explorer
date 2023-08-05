@@ -309,7 +309,7 @@ class AliyunFilesListView extends ItemView {
         for (const key in data) {
             if (data[key].type === "directory") {
                 let dirLi = parentEl.createEl('li', { cls: 'file-list-item dir' });
-                let indicator = dirLi.createEl('span', { cls: 'indicator folder-indicator closed' }); // 添加指示符
+                let indicator = dirLi.createEl('span', { text: '\u25B6', cls: 'indicator', style: 'font-size: 0.1em;' }); // 添加指示符并且降低其大小
                 let dirSpan = dirLi.createEl('span', { text: key, cls: 'dir-name' });
 
                 dirSpan.addEventListener('contextmenu', (event: MouseEvent) => {
@@ -331,12 +331,10 @@ class AliyunFilesListView extends ItemView {
                     event.stopPropagation(); // 阻止事件冒泡
                     if (childUl.style.display === 'none') {
                         childUl.style.display = 'block';
-                        indicator.classList.remove('closed');
-                        indicator.classList.add('open'); // 改变指示符
+                        indicator.textContent = '\u25BC'; // 改变指示符为下箭头
                     } else {
                         childUl.style.display = 'none';
-                        indicator.classList.remove('open');
-                        indicator.classList.add('closed'); // 改变指示符
+                        indicator.textContent = '\u25B6'; // 改变指示符为右箭头
                     }
                 });
 
