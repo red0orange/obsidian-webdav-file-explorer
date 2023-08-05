@@ -1,11 +1,11 @@
 {
-	"id": "aliyun-driver-connector",
-	"name": "Aliyun Driver Connector Plugin",
-	"version": "1.0.0",
+	"id": "webdav-file-explorer",
+	"name": "Webdav File Explorer",
+	"version": "1.0.1",
 	"minAppVersion": "0.15.0",
-	"description": "",
+	"description": "A webdav file explorer for Obsidian.",
 	"author": "red0orange",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
+	"authorUrl": "https://github.com/red0orange",
+	"fundingUrl": "",
 	"isDesktopOnly": false
 }
