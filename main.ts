@@ -312,18 +312,18 @@ class AliyunFilesListView extends ItemView {
                 let indicator = dirLi.createEl('span', { text: '>', cls: 'indicator' }); // 添加指示符
                 let dirSpan = dirLi.createEl('span', { text: key, cls: 'dir-name' });
 
-                // dirSpan.addEventListener('contextmenu', (event) => {
-                //     event.preventDefault();
+                dirSpan.addEventListener('contextmenu', (event: MouseEvent) => {
+                    event.preventDefault();
 
-                //     new Menu(this.app)
-                //         .addItem((item) =>
-                //             item.setTitle('Copy Path').onClick(() => {
-                //                 let path = this.getPathForKey(this.fileTreeData, key);
-                //                 this.app.clipboard.writeText(path);
-                //             })
-                //         )
-                //         .showAtPosition({ x: event.pageX, y: event.pageY });
-                // });
+                    new Menu(this.app)
+                        .addItem((item) =>
+                            item.setTitle('Copy Path').onClick(() => {
+                                let path = this.getPathForKey(this.fileTreeData, key);
+                                navigator.clipboard.writeText(` **[${path}]** `); // 加粗path
+                            })
+                        )
+                        .showAtPosition({ x: event.pageX, y: event.pageY });
+                });
 
                 let childUl = dirLi.createEl('ul', { cls: 'file-list' });
                 childUl.style.display = 'none'; // 默认隐藏子文件夹
@@ -346,6 +346,8 @@ class AliyunFilesListView extends ItemView {
                 });
 
                 let fileEl = fileLi.createEl('span', { text: key, cls: 'file-name' });
+
+                // 添加右键菜单
                 fileEl.addEventListener('contextmenu', (event: MouseEvent) => {
                     event.preventDefault();
 
