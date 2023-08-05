@@ -261,10 +261,48 @@ class AliyunFilesListView extends ItemView {
         this.containerEl.addClass('file-explorer-view');
         this.containerEl.style.overflowY = "auto"; // 添加滚动条
 
+        // 添加搜索框
+        let searchBox = this.containerEl.createEl('input', { type: 'text', placeholder: 'Search...' });
+        searchBox.addEventListener('keyup', () => {
+            let searchValue = searchBox.value;
+            let filteredData = this.filterFileTree(this.fileTreeData, searchValue);
+            rootUl.empty();  // 清空当前列表
+            this.constructList(filteredData, rootUl);  // 根据筛选后的数据重新构造列表
+        });
+
         this.createRefreshButton();
 
         let rootUl = this.containerEl.createEl('ul', { cls: 'file-list' });
         this.constructList(this.fileTreeData, rootUl);
+    }
+
+    filterFileTree(data: any, searchValue: string): any {
+        let filteredData: any = {};
+
+        for (const key in data) {
+            if (data[key].type === "file" && key.includes(searchValue)) {
+                filteredData[key] = data[key];
+            } else if (data[key].type === "directory") {
+                let filteredSubdirectory = this.filterFileTree(data[key], searchValue);
+                if (Object.keys(filteredSubdirectory).length > 0) {
+                    filteredData[key] = filteredSubdirectory;
+                }
+            }
+        }
+
+        return filteredData;
+    }
+
+    getPathForKey(data: any, targetKey: string, path: string[] = []): string {
+        for (const key in data) {
+            if (key === targetKey) {
+                return [...path, key].join('/');
+            } else if (data[key].type === "directory") {
+                let result = this.getPathForKey(data[key], targetKey, [...path, key]);
+                if (result) return result;
+            }
+        }
+        return null;
     }
 
     constructList(data: any, parentEl: any) {
@@ -273,6 +311,19 @@ class AliyunFilesListView extends ItemView {
                 let dirLi = parentEl.createEl('li', { cls: 'file-list-item dir' });
                 let indicator = dirLi.createEl('span', { text: '>', cls: 'indicator' }); // 添加指示符
                 let dirSpan = dirLi.createEl('span', { text: key, cls: 'dir-name' });
+
+                // dirSpan.addEventListener('contextmenu', (event) => {
+                //     event.preventDefault();
+
+                //     new Menu(this.app)
+                //         .addItem((item) =>
+                //             item.setTitle('Copy Path').onClick(() => {
+                //                 let path = this.getPathForKey(this.fileTreeData, key);
+                //                 this.app.clipboard.writeText(path);
+                //             })
+                //         )
+                //         .showAtPosition({ x: event.pageX, y: event.pageY });
+                // });
 
                 let childUl = dirLi.createEl('ul', { cls: 'file-list' });
                 childUl.style.display = 'none'; // 默认隐藏子文件夹
@@ -295,8 +346,17 @@ class AliyunFilesListView extends ItemView {
                 });
 
                 let fileEl = fileLi.createEl('span', { text: key, cls: 'file-name' });
-                // fileEl.addEventListener('click', () => {
-                //     this.app.workspace.openLinkText(key, "/", true);
+                // fileEl.addEventListener('contextmenu', (event) => {
+                //     event.preventDefault();
+
+                //     new Menu(this.app)
+                //         .addItem((item) =>
+                //             item.setTitle('Copy Path').onClick(() => {
+                //                 let path = this.getPathForKey(this.fileTreeData, key);
+                //                 this.app.clipboard.writeText(path);
+                //             })
+                //         )
+                //         .showAtPosition({ x: event.pageX, y: event.pageY });
                 // });
             }
         }
