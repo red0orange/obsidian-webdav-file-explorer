@@ -245,13 +245,23 @@ class AliyunFilesListView extends ItemView {
     }
 
     async onOpen() {
+        super.onOpen();
         this.draw();
+    }
+
+    createRefreshButton() {
+        let refreshButton = this.containerEl.createEl('button', { text: 'Refresh' });
+        refreshButton.addEventListener('click', async () => {
+            await this.plugin.redraw();
+        });
     }
 
     draw() {
         this.containerEl.empty();
         this.containerEl.addClass('file-explorer-view');
         this.containerEl.style.overflowY = "auto"; // 添加滚动条
+
+        this.createRefreshButton();
 
         let rootUl = this.containerEl.createEl('ul', { cls: 'file-list' });
         this.constructList(this.fileTreeData, rootUl);
@@ -280,6 +290,10 @@ class AliyunFilesListView extends ItemView {
                 this.constructList(data[key], childUl);
             } else if (data[key].type === "file") {
                 let fileLi = parentEl.createEl('li', { cls: 'file-list-item file' });
+                fileLi.addEventListener('click', (event) => { // 点击展开或隐藏子文件夹
+                    event.stopPropagation(); // 阻止事件冒泡
+                });
+
                 let fileEl = fileLi.createEl('span', { text: key, cls: 'file-name' });
                 // fileEl.addEventListener('click', () => {
                 //     this.app.workspace.openLinkText(key, "/", true);
@@ -287,21 +301,6 @@ class AliyunFilesListView extends ItemView {
             }
         }
     }
-
-    public onHeaderMenu(menu: Menu): void {
-        menu.addItem((item) => {
-            item
-                .setTitle('Refresh')
-                .setIcon('refresh')
-                .onClick(async () => {
-                    await this.draw();
-                });
-        });
-    }
-
-    public readonly redraw = (): void => {
-    }
-
 }
 
 interface AliyunDriverData {
@@ -434,7 +433,7 @@ export default class AliyunDriverConnectorPlugin extends Plugin {
         await this.webdavClient.init(this.webdavClient.webdavConfig);
 
         // view 重绘
-        await this.view.redraw();
+        await this.view.draw();
     }
 
     private readonly initView = async (): Promise<void> => {
