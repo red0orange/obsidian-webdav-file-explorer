@@ -1,20 +1,22 @@
+// obsidian api
 import {
     App,
-    TFile,
-    Editor,
-    MarkdownView,
     Modal,
-    Notice,
     Plugin,
     PluginSettingTab,
     Setting,
     ItemView,
     WorkspaceLeaf,
     Menu,
-    EditorPosition,
-    EditorSuggestContext,
-    EditorSuggestTriggerInfo
 } from 'obsidian';
+
+// webdav api
+import { AuthType, createClient } from "webdav/web";
+export type { WebDAVClient } from "webdav/web";
+import type {
+    FileStat,
+    WebDAVClient,
+} from "webdav/web";
 
 import type {
     WebdavConfig,
@@ -23,25 +25,19 @@ import {
     fromWebdavItemToRemoteItem
 } from "./remoteForWebdav";
 
-import { Queue } from "@fyears/tsqueue";
+// lodash api
 import chunk from "lodash/chunk";
 import flatten from "lodash/flatten";
 
-import { AuthType, BufferLike, createClient } from "webdav/web";
-export type { WebDAVClient } from "webdav/web";
-import type {
-    FileStat,
-    WebDAVClient,
-    RequestOptionsWithState,
-    Response,
-    ResponseDataDetailed,
-} from "webdav/web";
+// other api
+import { Queue } from "@fyears/tsqueue";
 
-// Remember to rename these classes and interfaces!
+
 interface FilePath {
     path: string;
     basename: string;
 }
+
 
 function createFileTree(files: any[]) {
     // 创建树的根
@@ -120,7 +116,7 @@ class MyWebdavClient {
                 // log.debug(itemsToFetchChunks);
                 const subContents = [] as FileStat[];
                 for (const singleChunk of itemsToFetchChunks) {
-                    const r = singleChunk.map((x) => {
+                    const r = singleChunk.map((x: any) => {
                         return this.client.getDirectoryContents(x, {
                             deep: false,
                             details: false /* no need for verbose details here */,
@@ -206,18 +202,20 @@ class MyWebdavClient {
     }
 }
 
-const AliyunListViewType = 'aliyun-driver';
 
-class AliyunFilesListView extends ItemView {
-    private readonly plugin: AliyunDriverConnectorPlugin;
-    private data: AliyunDriverData;
+const WebdavListViewType = 'aliyun-driver';
+
+
+class WebdavFilesListView extends ItemView {
+    private readonly plugin: WebdavFileExplorerPlugin;
+    private data: WebdavFileExplorerData;
 
     public fileTreeData: any = {};
 
     constructor(
         leaf: WorkspaceLeaf,
-        plugin: AliyunDriverConnectorPlugin,
-        data: AliyunDriverData,
+        plugin: WebdavFileExplorerPlugin,
+        data: WebdavFileExplorerData,
         fileTree: any = {},
     ) {
         super(leaf);
@@ -228,7 +226,7 @@ class AliyunFilesListView extends ItemView {
     }
 
     getViewType(): string {
-        return AliyunListViewType;
+        return WebdavListViewType;
     }
 
     getDisplayText(): string {
@@ -365,17 +363,17 @@ class AliyunFilesListView extends ItemView {
     }
 }
 
-interface AliyunDriverData {
+interface WebdavFileExplorerData {
     files: FilePath[];
 }
 
-const DEFAULT_DATA: AliyunDriverData = {
+const DEFAULT_DATA: WebdavFileExplorerData = {
     files: [],
 };
 
-export default class AliyunDriverConnectorPlugin extends Plugin {
-    public data: AliyunDriverData;
-    public view: AliyunFilesListView;
+export default class WebdavFileExplorerPlugin extends Plugin {
+    public data: WebdavFileExplorerData;
+    public view: WebdavFilesListView;
     public webdavClient: MyWebdavClient;
 
     async onload() {
@@ -404,8 +402,8 @@ export default class AliyunDriverConnectorPlugin extends Plugin {
         const [uniqueMember] = Object.values(fileTree);
 
         this.registerView(
-            AliyunListViewType,
-            (leaf) => (this.view = new AliyunFilesListView(leaf, this, this.data, uniqueMember))
+            WebdavListViewType,
+            (leaf) => (this.view = new WebdavFilesListView(leaf, this, this.data, uniqueMember))
         )
 
         // 注册打开 View 的命令
@@ -413,17 +411,17 @@ export default class AliyunDriverConnectorPlugin extends Plugin {
             id: 'aliyun-driver-connector-open',
             name: 'Open Aliyun Files',
             callback: async () => {
-                let [leaf] = this.app.workspace.getLeavesOfType(AliyunListViewType);
+                let [leaf] = this.app.workspace.getLeavesOfType(WebdavListViewType);
                 if (!leaf) {
                     leaf = this.app.workspace.getLeftLeaf(false);
-                    await leaf.setViewState({ type: AliyunListViewType });
+                    await leaf.setViewState({ type: WebdavListViewType });
                 }
 
                 this.app.workspace.revealLeaf(leaf);
             }
         });
         (this.app.workspace as any).registerHoverLinkSource(
-            AliyunListViewType,
+            WebdavListViewType,
             {
                 display: 'Aliyun Files',
                 defaultMod: true,
@@ -451,7 +449,7 @@ export default class AliyunDriverConnectorPlugin extends Plugin {
     }
 
     onunload() {
-        (this.app.workspace as any).unregisterHoverLinkSource(AliyunListViewType);
+        (this.app.workspace as any).unregisterHoverLinkSource(WebdavListViewType);
     }
 
     public redraw = async (): Promise<void> => {
@@ -464,15 +462,15 @@ export default class AliyunDriverConnectorPlugin extends Plugin {
 
     private readonly initView = async (): Promise<void> => {
         let leaf: WorkspaceLeaf | undefined;
-        for (leaf of this.app.workspace.getLeavesOfType(AliyunListViewType)) {
-            if (leaf.view instanceof AliyunFilesListView) {
+        for (leaf of this.app.workspace.getLeavesOfType(WebdavListViewType)) {
+            if (leaf.view instanceof WebdavFilesListView) {
                 return;
             }
             await leaf.setViewState({ type: 'empty' });
             break;
         }
         (leaf ?? this.app.workspace.getLeftLeaf(false)).setViewState({
-            type: AliyunListViewType,
+            type: WebdavListViewType,
             active: true,
         });
     }
@@ -487,9 +485,9 @@ export default class AliyunDriverConnectorPlugin extends Plugin {
 }
 
 class AliyunDriverConnectorSettingTab extends PluginSettingTab {
-    private readonly plugin: AliyunDriverConnectorPlugin;
+    private readonly plugin: WebdavFileExplorerPlugin;
 
-    constructor(app: App, plugin: AliyunDriverConnectorPlugin) {
+    constructor(app: App, plugin: WebdavFileExplorerPlugin) {
         super(app, plugin);
         this.plugin = plugin;
     }
