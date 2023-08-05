@@ -251,6 +251,7 @@ class AliyunFilesListView extends ItemView {
     draw() {
         this.containerEl.empty();
         this.containerEl.addClass('file-explorer-view');
+        this.containerEl.style.overflowY = "auto"; // 添加滚动条
 
         let rootUl = this.containerEl.createEl('ul', { cls: 'file-list' });
         this.constructList(this.fileTreeData, rootUl);
@@ -260,9 +261,22 @@ class AliyunFilesListView extends ItemView {
         for (const key in data) {
             if (data[key].type === "directory") {
                 let dirLi = parentEl.createEl('li', { cls: 'file-list-item dir' });
-                dirLi.createEl('span', { text: key, cls: 'dir-name' });
+                let indicator = dirLi.createEl('span', { text: '>', cls: 'indicator' }); // 添加指示符
+                let dirSpan = dirLi.createEl('span', { text: key, cls: 'dir-name' });
 
                 let childUl = dirLi.createEl('ul', { cls: 'file-list' });
+                childUl.style.display = 'none'; // 默认隐藏子文件夹
+                dirLi.addEventListener('click', (event) => { // 点击展开或隐藏子文件夹
+                    event.stopPropagation(); // 阻止事件冒泡
+                    if (childUl.style.display === 'none') {
+                        childUl.style.display = 'block';
+                        indicator.textContent = 'v'; // 改变指示符
+                    } else {
+                        childUl.style.display = 'none';
+                        indicator.textContent = '>'; // 改变指示符
+                    }
+                });
+
                 this.constructList(data[key], childUl);
             } else if (data[key].type === "file") {
                 let fileLi = parentEl.createEl('li', { cls: 'file-list-item file' });
@@ -277,10 +291,10 @@ class AliyunFilesListView extends ItemView {
     public onHeaderMenu(menu: Menu): void {
         menu.addItem((item) => {
             item
-                .setTitle('Upload')
-                .setIcon('upload')
+                .setTitle('Refresh')
+                .setIcon('refresh')
                 .onClick(async () => {
-                    console.log('upload');
+                    await this.draw();
                 });
         });
     }
