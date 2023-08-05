@@ -327,7 +327,7 @@ class AliyunFilesListView extends ItemView {
 
                 let childUl = dirLi.createEl('ul', { cls: 'file-list' });
                 childUl.style.display = 'none'; // 默认隐藏子文件夹
-                dirLi.addEventListener('click', (event) => { // 点击展开或隐藏子文件夹
+                dirLi.addEventListener('click', (event: { stopPropagation: () => void; }) => { // 点击展开或隐藏子文件夹
                     event.stopPropagation(); // 阻止事件冒泡
                     if (childUl.style.display === 'none') {
                         childUl.style.display = 'block';
@@ -341,23 +341,23 @@ class AliyunFilesListView extends ItemView {
                 this.constructList(data[key], childUl);
             } else if (data[key].type === "file") {
                 let fileLi = parentEl.createEl('li', { cls: 'file-list-item file' });
-                fileLi.addEventListener('click', (event) => { // 点击展开或隐藏子文件夹
+                fileLi.addEventListener('click', (event: { stopPropagation: () => void; }) => { // 点击展开或隐藏子文件夹
                     event.stopPropagation(); // 阻止事件冒泡
                 });
 
                 let fileEl = fileLi.createEl('span', { text: key, cls: 'file-name' });
-                // fileEl.addEventListener('contextmenu', (event) => {
-                //     event.preventDefault();
+                fileEl.addEventListener('contextmenu', (event: MouseEvent) => {
+                    event.preventDefault();
 
-                //     new Menu(this.app)
-                //         .addItem((item) =>
-                //             item.setTitle('Copy Path').onClick(() => {
-                //                 let path = this.getPathForKey(this.fileTreeData, key);
-                //                 this.app.clipboard.writeText(path);
-                //             })
-                //         )
-                //         .showAtPosition({ x: event.pageX, y: event.pageY });
-                // });
+                    new Menu(this.app)
+                        .addItem((item) =>
+                            item.setTitle('Copy Path').onClick(() => {
+                                let path = this.getPathForKey(this.fileTreeData, key);
+                                navigator.clipboard.writeText(` **[${path}]** `); // 加粗path
+                            })
+                        )
+                        .showAtPosition({ x: event.pageX, y: event.pageY });
+                });
             }
         }
     }
@@ -396,7 +396,7 @@ export default class AliyunDriverConnectorPlugin extends Plugin {
         this.webdavClient.init(DefaultWebdavConfig);
 
         // webdav client check connectivity
-        console.log(this.webdavClient.checkConnectivity());
+        this.webdavClient.checkConnectivity();
         console.log(this.webdavClient.listFromRemote("auto_1"));
         const fileTree = await this.webdavClient.listFromRemote("auto_1");
         const [uniqueMember] = Object.values(fileTree);
