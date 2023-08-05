@@ -1,7 +1,7 @@
 {
 	"id": "webdav-file-explorer",
 	"name": "Webdav File Explorer",
-	"version": "1.0.1",
+	"version": "1.1.1",
 	"minAppVersion": "0.15.0",
 	"description": "A webdav file explorer for Obsidian.",
 	"author": "red0orange",
