@@ -8,6 +8,7 @@ import {
     ItemView,
     WorkspaceLeaf,
     Menu,
+    TFile
 } from 'obsidian';
 
 // webdav api
@@ -32,6 +33,9 @@ import flatten from "lodash/flatten";
 // other api
 import { Queue } from "@fyears/tsqueue";
 
+import * as fs from 'fs';
+import * as pathModule from 'path';
+
 
 interface FilePath {
     path: string;
@@ -39,7 +43,50 @@ interface FilePath {
 }
 
 
-function createFileTree(files: any[]) {
+function createFileTreeFromObsidian(app: any, rootFolderPath: string): any {
+    // 获取所有文件
+    const allFiles = app.vault.getFiles();
+    console.log(allFiles);
+
+    // 过滤出指定文件夹下的文件
+    const filesInFolder = allFiles.filter((file: TFile) => {
+        return file.path.startsWith(rootFolderPath);
+    });
+
+    // 创建树的根
+    const fileTree: any = {};
+
+    // 为每个文件和目录在树中创建位置
+    for (const file of filesInFolder) {
+        const relativePath = file.path.substr(rootFolderPath.length); // 获取相对于根文件夹的路径
+        const parts = relativePath.split('/');
+        let currentLocation = fileTree;
+
+        // 跳过空字符串（第一个斜杠之前的部分）
+        for (let i = 1; i < parts.length; i++) {
+            const part = parts[i];
+
+            // 如果我们还没有到达文件名，则创建或导航到目录
+            if (i < parts.length - 1) {
+                if (!currentLocation[part]) {
+                    currentLocation[part] = {};
+                }
+
+                currentLocation = currentLocation[part];
+            }
+
+            // 如果我们到达了文件名，则添加文件
+            else {
+                currentLocation[part] = file;
+            }
+        }
+    }
+
+    return fileTree;
+}
+
+
+function createFileTreeFromWebdav(files: any[]) {
     // 创建树的根
     const fileTree: any = {};
 
@@ -151,7 +198,7 @@ class MyWebdavClient {
                 }
             )) as FileStat[];
         }
-        const fileTree = createFileTree(contents);
+        const fileTree = createFileTreeFromWebdav(contents);
         console.log(fileTree);
         return fileTree;
     }
@@ -239,22 +286,23 @@ class WebdavFilesListView extends ItemView {
 
     onload() {
         super.onload();
-        this.draw();
+        this.redraw();
     }
 
     async onOpen() {
         super.onOpen();
-        this.draw();
+        this.redraw();
     }
 
     createRefreshButton() {
         let refreshButton = this.containerEl.createEl('button', { text: 'Refresh' });
         refreshButton.addEventListener('click', async () => {
-            await this.plugin.redraw();
+            await this.plugin.updateData();
+            await this.plugin.view.redraw();
         });
     }
 
-    draw() {
+    redraw() {
         this.containerEl.empty();
         this.containerEl.addClass('file-explorer-view');
         this.containerEl.style.overflowY = "auto"; // 添加滚动条
@@ -364,46 +412,43 @@ class WebdavFilesListView extends ItemView {
 }
 
 interface WebdavFileExplorerData {
-    files: FilePath[];
+    rootFolderPath: string;
+    webdavConfig: WebdavConfig;
 }
 
 const DEFAULT_DATA: WebdavFileExplorerData = {
-    files: [],
+    rootFolderPath: '0_Webdav',
+    webdavConfig: {
+        address: 'http://red0orange.plus:8080',
+        username: 'admin',
+        password: 'admin',
+        authType: 'basic',
+        manualRecursive: false,
+        remoteBaseDir: '2023_下半年',
+    },
 };
 
 export default class WebdavFileExplorerPlugin extends Plugin {
-    public data: WebdavFileExplorerData;
+    public data: WebdavFileExplorerData = DEFAULT_DATA;
     public view: WebdavFilesListView;
     public webdavClient: MyWebdavClient;
+    
+    public fileTreeData: any;
 
     async onload() {
         await this.loadData();
 
         // 终端输出插件版本
-        console.log('Aliyun Driver Connector: Loading plugin v' + this.manifest.version);
+        console.log('Webdav File Explorer: Loading plugin v' + this.manifest.version);
 
         this.webdavClient = new MyWebdavClient();
 
-        // webdav client init
-        const DefaultWebdavConfig: WebdavConfig = {
-            address: 'http://red0orange.plus:8080',
-            username: 'admin',
-            password: 'admin',
-            authType: 'basic',
-            manualRecursive: false,
-            remoteBaseDir: '2023_下半年',
-        };
-        this.webdavClient.init(DefaultWebdavConfig);
-
-        // webdav client check connectivity
-        this.webdavClient.checkConnectivity();
-        console.log(this.webdavClient.listFromRemote("auto_1"));
-        const fileTree = await this.webdavClient.listFromRemote("auto_1");
-        const [uniqueMember] = Object.values(fileTree);
+        // 初始化
+        this.updateData();
 
         this.registerView(
             WebdavListViewType,
-            (leaf) => (this.view = new WebdavFilesListView(leaf, this, this.data, uniqueMember))
+            (leaf) => (this.view = new WebdavFilesListView(leaf, this, this.data, this.fileTreeData))
         )
 
         // 注册打开 View 的命令
@@ -436,28 +481,96 @@ export default class WebdavFileExplorerPlugin extends Plugin {
         }
 
         // 注册设置页面
-        this.addSettingTab(new AliyunDriverConnectorSettingTab(this.app, this));
+        this.addSettingTab(new WebdavFileExplorerSettingTab(this.app, this));
 
         // If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
         // Using this function will automatically remove the event listener when this plugin is disabled.
         this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
             console.log('click', evt);
         });
-
-        // When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-        this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
     }
 
     onunload() {
         (this.app.workspace as any).unregisterHoverLinkSource(WebdavListViewType);
     }
 
-    public redraw = async (): Promise<void> => {
-        // webdav client reinit
-        await this.webdavClient.init(this.webdavClient.webdavConfig);
+    async createFileTreeInFolder(folderPath: string) {
+        // 获取所有文件
+        const allFiles = this.app.vault.getFiles();
 
-        // view 重绘
-        await this.view.draw();
+        // 筛选出指定文件夹下的所有文件
+        const filesInFolder = allFiles.filter(file => file.path.startsWith(folderPath));
+
+        // 创建树的根
+        const fileTree: any = {};
+
+        // 为每个文件和目录在树中创建位置
+        for (const file of filesInFolder) {
+            const parts = file.path.split('/');
+            let currentLocation = fileTree;
+
+            // 跳过空字符串（第一个斜杠之前的部分）
+            for (let i = 1; i < parts.length; i++) {
+                const part = parts[i];
+
+                // 如果我们还没有到达文件名，则创建或导航到目录
+                if (i < parts.length - 1) {
+                    if (!currentLocation[part]) {
+                        currentLocation[part] = {};
+                    }
+
+                    currentLocation = currentLocation[part];
+                }
+
+                // 如果我们到达了文件名，则添加文件
+                else {
+                    currentLocation[part] = file;
+                }
+            }
+        }
+
+        return fileTree;
+    }
+
+    // This function parses the file tree and creates .md files for each file
+    async createFileStructure(rootPath: string, fileTree: any, path: string, vault: any) {
+        for (const key in fileTree) {
+            const item = fileTree[key];
+            if (item.type === "directory") {
+                console.log("Creating directory: " + path + "/" + item.basename);
+                await this.createFileStructure(rootPath, item, path + "/" + item.basename, vault);
+            } else if (item.type === "file") {
+                const filePath = path + "/" + item.basename + ".md";
+                const dirPath = pathModule.dirname(filePath);
+
+                // Ensure the directory exists in the vault
+                fs.mkdirSync(rootPath + "/" + dirPath, { recursive: true });
+
+                const fileExists = await vault.adapter.exists(filePath);
+                if (!fileExists) {
+                    console.log("Creating file: " + filePath);
+                    await vault.create(filePath, '');
+                }
+            }
+        }
+    }
+
+    public updateData = async (): Promise<void> => {
+        // webdav client init
+        this.webdavClient.init(this.data.webdavConfig);
+
+        // webdav client check connectivity
+        this.webdavClient.checkConnectivity();
+        console.log(this.webdavClient.listFromRemote("auto_1"));
+        const fileTree = await this.webdavClient.listFromRemote("auto_1");
+        const [uniqueMember] = Object.values(fileTree);
+        this.fileTreeData = uniqueMember;
+
+        // 创建文件结构
+        const vaultPath = this.app.vault.adapter.getBasePath();
+        // const rootPath = vaultPath + "/" + this.data.rootFolderPath;
+        const rootPath = vaultPath;
+        this.createFileStructure(rootPath, uniqueMember, this.data.rootFolderPath, this.app.vault);
     }
 
     private readonly initView = async (): Promise<void> => {
@@ -484,7 +597,7 @@ export default class WebdavFileExplorerPlugin extends Plugin {
     }
 }
 
-class AliyunDriverConnectorSettingTab extends PluginSettingTab {
+class WebdavFileExplorerSettingTab extends PluginSettingTab {
     private readonly plugin: WebdavFileExplorerPlugin;
 
     constructor(app: App, plugin: WebdavFileExplorerPlugin) {
@@ -497,42 +610,61 @@ class AliyunDriverConnectorSettingTab extends PluginSettingTab {
         containerEl.empty();
 
         // 标题
-        containerEl.createEl('h2', { text: 'Aliyun Driver Connector Settings' });
-        // aliyun driver webdav 配置
+        containerEl.createEl('h2', { text: 'Webdav File Explorer Settings' });
         new Setting(containerEl)
-            .setName('Aliyun Driver WebDAV: address')
-            .setDesc('Aliyun Driver WebDAV 服务器的端口')
+            .setName('WebDAV: address')
+            .setDesc('WebDAV 服务器的端口')
             .addText((text) => {
                 text.inputEl.setAttr('type', 'text');
                 text.inputEl.setAttr('placeholder', '127.0.0.1:5050');
                 text.setValue(this.plugin.webdavClient.webdavConfig.address.toString());
                 text.inputEl.onblur = (e: FocusEvent) => {
                     this.plugin.webdavClient.webdavConfig.address = (e.target as HTMLInputElement).value;
-                    this.plugin.redraw();
+                    this.plugin.updateData();
+                    this.plugin.view.redraw();
+                    this.plugin.saveData();
                 }
             });
         new Setting(containerEl)
-            .setName('Aliyun Driver WebDAV: user')
-            .setDesc('Aliyun Driver WebDAV 服务器的用户名')
+            .setName('WebDAV: user')
+            .setDesc('WebDAV 服务器的用户名')
             .addText((text) => {
                 text.inputEl.setAttr('type', 'text');
                 text.inputEl.setAttr('placeholder', 'admin');
                 text.setValue(this.plugin.webdavClient.webdavConfig.username);
                 text.inputEl.onblur = (e: FocusEvent) => {
                     this.plugin.webdavClient.webdavConfig.username = (e.target as HTMLInputElement).value;
-                    this.plugin.redraw();
+                    this.plugin.updateData();
+                    this.plugin.view.redraw();
+                    this.plugin.saveData();
                 }
             });
         new Setting(containerEl)
-            .setName('Aliyun Driver WebDAV: password')
-            .setDesc('Aliyun Driver WebDAV 服务器的密码')
+            .setName('WebDAV: password')
+            .setDesc('WebDAV 服务器的密码')
             .addText((text) => {
                 text.inputEl.setAttr('type', 'text');
                 text.inputEl.setAttr('placeholder', 'admin');
                 text.setValue(this.plugin.webdavClient.webdavConfig.password);
                 text.inputEl.onblur = (e: FocusEvent) => {
                     this.plugin.webdavClient.webdavConfig.password = (e.target as HTMLInputElement).value;
-                    this.plugin.redraw();
+                    this.plugin.updateData();
+                    this.plugin.view.redraw();
+                    this.plugin.saveData();
+                }
+            });
+        new Setting(containerEl)
+            .setName('Root folder path')
+            .setDesc('The path to the root folder to display in the file explorer')
+            .addText((text) => {
+                text.inputEl.setAttr('type', 'text');
+                text.inputEl.setAttr('placeholder', '0_Webdav');
+                text.setValue(this.plugin.data.rootFolderPath);
+                text.inputEl.onblur = (e: FocusEvent) => {
+                    this.plugin.data.rootFolderPath = (e.target as HTMLInputElement).value;
+                    this.plugin.updateData();
+                    this.plugin.view.redraw();
+                    this.plugin.saveData();
                 }
             });
 
