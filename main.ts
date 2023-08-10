@@ -85,6 +85,7 @@ class MyWebdavClient {
         const headers = {
             "Cache-Control": "no-cache",
         };
+        console.log(webdavConfig);
         this.client = createClient(webdavConfig.address, {
             username: webdavConfig.username,
             password: webdavConfig.password,
@@ -528,6 +529,7 @@ export default class WebdavFileExplorerPlugin extends Plugin {
         let leaf: WorkspaceLeaf | undefined;
         for (leaf of this.app.workspace.getLeavesOfType(WebdavListViewType)) {
             if (leaf.view instanceof WebdavFilesListView) {
+                console.log('already exists');
                 return;
             }
             await leaf.setViewState({ type: 'empty' });
@@ -605,6 +607,20 @@ class WebdavFileExplorerSettingTab extends PluginSettingTab {
                 }
             });
         new Setting(containerEl)
+            .setName('WebDAV: remote dir')
+            .setDesc('WebDAV 根路径')
+            .addText((text) => {
+                text.inputEl.setAttr('type', 'text');
+                text.inputEl.setAttr('placeholder', 'Obsidian');
+                text.setValue(this.plugin.webdavClient.webdavConfig.remoteBaseDir);
+                text.inputEl.onblur = (e: FocusEvent) => {
+                    this.plugin.webdavClient.webdavConfig.remoteBaseDir = (e.target as HTMLInputElement).value;
+                    this.plugin.updateData();
+                    this.plugin.view.redraw();
+                    this.plugin.saveData();
+                }
+            });
+        new Setting(containerEl)
             .setName('Root folder path')
             .setDesc('The path to the root folder to display in the file explorer')
             .addText((text) => {
@@ -618,7 +634,6 @@ class WebdavFileExplorerSettingTab extends PluginSettingTab {
                     this.plugin.saveData();
                 }
             });
-
     }
 }
 

@@ -51,8 +51,8 @@ export interface WebdavConfig {
     password: string;
     authType: WebdavAuthType;
     manualRecursive: boolean; // deprecated in 0.3.6, use depth
+    remoteBaseDir: string;
     depth?: WebdavDepthType;
-    remoteBaseDir?: string;
 }
 
 export interface OnedriveConfig {
