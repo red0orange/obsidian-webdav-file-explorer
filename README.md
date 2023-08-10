@@ -8,3 +8,9 @@ Solution: The plugin supports you to save files in any Webdav access support net
 Usage:
 1. Install and enable the plugin.
 2. Set your Webdav file path at the plugin settings. Where "remote dir" is the specified root path, or empty if it is the entire root directory. Where "root folder path" is the local root directory for creating symmetric md files for each folder.
+
+Thanks:
+- [recent file](https://github.com/tgrosinger/recent-files-obsidian/blob/main/main.ts)
+- [remotely-save](https://github.com/remotely-save/remotely-save/tree/master)
+- [Remotely-save](https://github.com/remotely-save/remotely-save)
+- [aliyundrive-webdav](https://github.com/messense/aliyundrive-webdav)
