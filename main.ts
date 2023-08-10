@@ -37,55 +37,6 @@ import * as fs from 'fs';
 import * as pathModule from 'path';
 
 
-interface FilePath {
-    path: string;
-    basename: string;
-}
-
-
-function createFileTreeFromObsidian(app: any, rootFolderPath: string): any {
-    // 获取所有文件
-    const allFiles = app.vault.getFiles();
-    console.log(allFiles);
-
-    // 过滤出指定文件夹下的文件
-    const filesInFolder = allFiles.filter((file: TFile) => {
-        return file.path.startsWith(rootFolderPath);
-    });
-
-    // 创建树的根
-    const fileTree: any = {};
-
-    // 为每个文件和目录在树中创建位置
-    for (const file of filesInFolder) {
-        const relativePath = file.path.substr(rootFolderPath.length); // 获取相对于根文件夹的路径
-        const parts = relativePath.split('/');
-        let currentLocation = fileTree;
-
-        // 跳过空字符串（第一个斜杠之前的部分）
-        for (let i = 1; i < parts.length; i++) {
-            const part = parts[i];
-
-            // 如果我们还没有到达文件名，则创建或导航到目录
-            if (i < parts.length - 1) {
-                if (!currentLocation[part]) {
-                    currentLocation[part] = {};
-                }
-
-                currentLocation = currentLocation[part];
-            }
-
-            // 如果我们到达了文件名，则添加文件
-            else {
-                currentLocation[part] = file;
-            }
-        }
-    }
-
-    return fileTree;
-}
-
-
 function createFileTreeFromWebdav(files: any[]) {
     // 创建树的根
     const fileTree: any = {};
@@ -419,12 +370,12 @@ interface WebdavFileExplorerData {
 const DEFAULT_DATA: WebdavFileExplorerData = {
     rootFolderPath: '0_Webdav',
     webdavConfig: {
-        address: 'http://red0orange.plus:8080',
+        address: 'http://127.0.0.1:8080',
         username: 'admin',
         password: 'admin',
         authType: 'basic',
         manualRecursive: false,
-        remoteBaseDir: '2023_下半年',
+        remoteBaseDir: 'obsidian',
     },
 };
 
