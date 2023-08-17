@@ -85,7 +85,7 @@ class MyWebdavClient {
         const headers = {
             "Cache-Control": "no-cache",
         };
-        console.log(webdavConfig);
+        // console.log(webdavConfig);
         this.client = createClient(webdavConfig.address, {
             username: webdavConfig.username,
             password: webdavConfig.password,
@@ -151,7 +151,7 @@ class MyWebdavClient {
             )) as FileStat[];
         }
         const fileTree = createFileTreeFromWebdav(contents);
-        console.log(fileTree);
+        // console.log(fileTree);
         return fileTree;
     }
 
@@ -202,7 +202,7 @@ class MyWebdavClient {
 }
 
 
-const WebdavListViewType = 'aliyun-driver';
+const WebdavListViewType = 'webdav-file-explorer';
 
 
 class WebdavFilesListView extends ItemView {
@@ -229,7 +229,7 @@ class WebdavFilesListView extends ItemView {
     }
 
     getDisplayText(): string {
-        return "Aliyun driver";
+        return "Webdav File Explorer";
     }
 
     getIcon(): string {
@@ -405,8 +405,8 @@ export default class WebdavFileExplorerPlugin extends Plugin {
 
         // 注册打开 View 的命令
         this.addCommand({
-            id: 'aliyun-driver-connector-open',
-            name: 'Open Aliyun Files',
+            id: 'webdav-file-explorer-open',
+            name: 'Open Webdav File Explorer',
             callback: async () => {
                 let [leaf] = this.app.workspace.getLeavesOfType(WebdavListViewType);
                 if (!leaf) {
@@ -420,7 +420,7 @@ export default class WebdavFileExplorerPlugin extends Plugin {
         (this.app.workspace as any).registerHoverLinkSource(
             WebdavListViewType,
             {
-                display: 'Aliyun Files',
+                display: 'Webdav File Explorer',
                 defaultMod: true,
             },
         );
@@ -434,12 +434,6 @@ export default class WebdavFileExplorerPlugin extends Plugin {
 
         // 注册设置页面
         this.addSettingTab(new WebdavFileExplorerSettingTab(this.app, this));
-
-        // If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-        // Using this function will automatically remove the event listener when this plugin is disabled.
-        this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-            console.log('click', evt);
-        });
     }
 
     onunload() {
@@ -489,7 +483,7 @@ export default class WebdavFileExplorerPlugin extends Plugin {
         for (const key in fileTree) {
             const item = fileTree[key];
             if (item.type === "directory") {
-                console.log("Creating directory: " + path + "/" + item.basename);
+                // console.log("Creating directory: " + path + "/" + item.basename);
                 await this.createFileStructure(rootPath, item, path + "/" + item.basename, vault);
             } else if (item.type === "file") {
                 const filePath = path + "/" + item.basename + ".md";
@@ -500,7 +494,7 @@ export default class WebdavFileExplorerPlugin extends Plugin {
 
                 const fileExists = await vault.adapter.exists(filePath);
                 if (!fileExists) {
-                    console.log("Creating file: " + filePath);
+                    // console.log("Creating file: " + filePath);
                     await vault.create(filePath, '');
                 }
             }
@@ -513,7 +507,7 @@ export default class WebdavFileExplorerPlugin extends Plugin {
 
         // webdav client check connectivity
         this.webdavClient.checkConnectivity();
-        console.log(this.webdavClient.listFromRemote("auto_1"));
+        // console.log(this.webdavClient.listFromRemote("auto_1"));
         const fileTree = await this.webdavClient.listFromRemote("auto_1");
         const [uniqueMember] = Object.values(fileTree);
         this.fileTreeData = uniqueMember;
@@ -529,7 +523,7 @@ export default class WebdavFileExplorerPlugin extends Plugin {
         let leaf: WorkspaceLeaf | undefined;
         for (leaf of this.app.workspace.getLeavesOfType(WebdavListViewType)) {
             if (leaf.view instanceof WebdavFilesListView) {
-                console.log('already exists');
+                // console.log('already exists');
                 return;
             }
             await leaf.setViewState({ type: 'empty' });
