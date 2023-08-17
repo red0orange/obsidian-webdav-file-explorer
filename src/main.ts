@@ -246,29 +246,26 @@ class WebdavFilesListView extends ItemView {
         this.redraw();
     }
 
-    createRefreshButton() {
-        let refreshButton = this.containerEl.createEl('button', { text: 'Refresh' });
-        refreshButton.addEventListener('click', async () => {
-            await this.plugin.updateData();
-            await this.plugin.view.redraw();
-        });
-    }
-
     redraw() {
         this.containerEl.empty();
         this.containerEl.addClass('file-explorer-view');
         this.containerEl.style.overflowY = "auto"; // 添加滚动条
 
-        // 添加搜索框
-        let searchBox = this.containerEl.createEl('input', { type: 'text', placeholder: 'Search...' });
-        searchBox.addEventListener('keyup', () => {
-            let searchValue = searchBox.value;
-            let filteredData = this.filterFileTree(this.fileTreeData, searchValue);
-            rootUl.empty();  // 清空当前列表
-            this.constructList(filteredData, rootUl);  // 根据筛选后的数据重新构造列表
-        });
+        // // 添加搜索框
+        // let searchBox = this.containerEl.createEl('input', { type: 'text', placeholder: 'Search...' });
+        // searchBox.addEventListener('keyup', () => {
+        //     let searchValue = searchBox.value;
+        //     let filteredData = this.filterFileTree(this.fileTreeData, searchValue);
+        //     rootUl.empty();  // 清空当前列表
+        //     this.constructList(filteredData, rootUl);  // 根据筛选后的数据重新构造列表
+        // });
 
-        this.createRefreshButton();
+        let refreshButton = this.containerEl.createEl('button', { text: 'Refresh' });
+        refreshButton.addEventListener('click', async () => {
+            await this.plugin.updateData();
+            this.fileTreeData = this.plugin.fileTreeData;
+            await this.redraw();
+        });
 
         let rootUl = this.containerEl.createEl('ul', { cls: 'file-list' });
         this.constructList(this.fileTreeData, rootUl);
@@ -396,7 +393,7 @@ export default class WebdavFileExplorerPlugin extends Plugin {
         this.webdavClient = new MyWebdavClient();
 
         // 初始化
-        this.updateData();
+        await this.updateData();
 
         this.registerView(
             WebdavListViewType,
@@ -426,11 +423,9 @@ export default class WebdavFileExplorerPlugin extends Plugin {
         );
 
         // 当 layout 准备好时，构建 view
-        if (this.app.workspace.layoutReady) {
+        this.app.workspace.onLayoutReady(() => {
             this.initView();
-        } else {
-            this.registerEvent(this.app.workspace.on('layout-ready', this.initView));
-        }
+        });
 
         // 注册设置页面
         this.addSettingTab(new WebdavFileExplorerSettingTab(this.app, this));
@@ -514,7 +509,6 @@ export default class WebdavFileExplorerPlugin extends Plugin {
 
         // 创建文件结构
         const vaultPath = this.app.vault.adapter.getBasePath();
-        // const rootPath = vaultPath + "/" + this.data.rootFolderPath;
         const rootPath = vaultPath;
         this.createFileStructure(rootPath, uniqueMember, this.data.rootFolderPath, this.app.vault);
     }
@@ -523,7 +517,7 @@ export default class WebdavFileExplorerPlugin extends Plugin {
         let leaf: WorkspaceLeaf | undefined;
         for (leaf of this.app.workspace.getLeavesOfType(WebdavListViewType)) {
             if (leaf.view instanceof WebdavFilesListView) {
-                // console.log('already exists');
+                console.log('already exists');
                 return;
             }
             await leaf.setViewState({ type: 'empty' });
