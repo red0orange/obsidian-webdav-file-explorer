@@ -5,6 +5,7 @@ import {
     Plugin,
     PluginSettingTab,
     Setting,
+    Notice,
     ItemView,
     WorkspaceLeaf,
     Menu,
@@ -31,10 +32,18 @@ import chunk from "lodash/chunk";
 import flatten from "lodash/flatten";
 
 // other api
+import * as path from 'path';
 import { Queue } from "@fyears/tsqueue";
 
 import * as fs from 'fs';
 import * as pathModule from 'path';
+import { test } from 'xregexp';
+
+
+interface FilePath {
+  path: string;
+  basename: string;
+}
 
 
 function createFileTreeFromWebdav(files: any[]) {
@@ -322,7 +331,7 @@ class WebdavFilesListView extends ItemView {
 
                 let childUl = dirLi.createEl('ul', { cls: 'file-list' });
                 childUl.style.display = 'none'; // 默认隐藏子文件夹
-                dirLi.addEventListener('click', (event: { stopPropagation: () => void; }) => { // 点击展开或隐藏子文件夹
+                dirLi.addEventListener('click', (event: any) => { // 点击展开或隐藏子文件夹
                     event.stopPropagation(); // 阻止事件冒泡
                     if (childUl.style.display === 'none') {
                         childUl.style.display = 'block';
@@ -336,8 +345,16 @@ class WebdavFilesListView extends ItemView {
                 this.constructList(data[key], childUl);
             } else if (data[key].type === "file") {
                 let fileLi = parentEl.createEl('li', { cls: 'file-list-item file' });
-                fileLi.addEventListener('click', (event: { stopPropagation: () => void; }) => { // 点击展开或隐藏子文件夹
+                fileLi.addEventListener('click', (event: any) => { // 点击展开或隐藏子文件夹
                     event.stopPropagation(); // 阻止事件冒泡
+
+                    const ori_webdav_path = data[key].filename;
+                    const new_obsdiian_path_name = ori_webdav_path.replace(/^\/[^\/]+/, this.plugin.data.rootFolderPath) + ".md"
+                    const new_obsdiian_path: FilePath = {
+                        path: new_obsdiian_path_name,
+                        basename: path.basename(new_obsdiian_path_name)
+                    }
+                    this.focusFile(new_obsdiian_path, event.ctrlKey || event.metaKey);
                 });
 
                 let fileEl = fileLi.createEl('span', { text: key, cls: 'file-name' });
@@ -358,6 +375,32 @@ class WebdavFilesListView extends ItemView {
             }
         }
     }
+
+    /**
+     * Open the provided file in the most recent leaf.
+     *
+     * @param shouldSplit Whether the file should be opened in a new split, or in
+     * the most recent split. If the most recent split is pinned, this is set to
+     * true.
+     */
+    private readonly focusFile = (file: FilePath, shouldSplit = false): void => {
+        const targetFile = this.app.vault
+        .getFiles()
+        .find((f) => f.path === file.path);
+
+        if (targetFile) {
+            let leaf = this.app.workspace.getMostRecentLeaf();
+            if (leaf) {
+                const createLeaf = shouldSplit || leaf.getViewState().pinned;
+                if (createLeaf) {
+                    leaf = this.app.workspace.getLeaf('tab');
+                }
+                leaf.openFile(targetFile);
+            }
+        } else {
+            new Notice('Cannot find a file with that name');
+        }
+    };
 }
 
 interface WebdavFileExplorerData {
