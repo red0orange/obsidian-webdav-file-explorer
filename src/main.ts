@@ -610,6 +610,7 @@ class WebdavFileExplorerSettingTab extends PluginSettingTab {
                 text.inputEl.onblur = (e: FocusEvent) => {
                     this.plugin.webdavClient.webdavConfig.address = (e.target as HTMLInputElement).value;
                     this.plugin.updateData();
+                    this.plugin.view.fileTreeData = this.plugin.fileTreeData;
                     this.plugin.view.redraw();
                     this.plugin.saveData();
                 }
@@ -624,6 +625,7 @@ class WebdavFileExplorerSettingTab extends PluginSettingTab {
                 text.inputEl.onblur = (e: FocusEvent) => {
                     this.plugin.webdavClient.webdavConfig.username = (e.target as HTMLInputElement).value;
                     this.plugin.updateData();
+                    this.plugin.view.fileTreeData = this.plugin.fileTreeData;
                     this.plugin.view.redraw();
                     this.plugin.saveData();
                 }
@@ -638,6 +640,7 @@ class WebdavFileExplorerSettingTab extends PluginSettingTab {
                 text.inputEl.onblur = (e: FocusEvent) => {
                     this.plugin.webdavClient.webdavConfig.password = (e.target as HTMLInputElement).value;
                     this.plugin.updateData();
+                    this.plugin.view.fileTreeData = this.plugin.fileTreeData;
                     this.plugin.view.redraw();
                     this.plugin.saveData();
                 }
@@ -652,6 +655,7 @@ class WebdavFileExplorerSettingTab extends PluginSettingTab {
                 text.inputEl.onblur = (e: FocusEvent) => {
                     this.plugin.webdavClient.webdavConfig.remoteBaseDir = (e.target as HTMLInputElement).value;
                     this.plugin.updateData();
+                    this.plugin.view.fileTreeData = this.plugin.fileTreeData;
                     this.plugin.view.redraw();
                     this.plugin.saveData();
                 }
@@ -666,6 +670,7 @@ class WebdavFileExplorerSettingTab extends PluginSettingTab {
                 text.inputEl.onblur = (e: FocusEvent) => {
                     this.plugin.data.rootFolderPath = (e.target as HTMLInputElement).value;
                     this.plugin.updateData();
+                    this.plugin.view.fileTreeData = this.plugin.fileTreeData;
                     this.plugin.view.redraw();
                     this.plugin.saveData();
                 }
