@@ -483,6 +483,16 @@ export default class WebdavFileExplorerPlugin extends Plugin {
         (this.app.workspace as any).unregisterHoverLinkSource(WebdavListViewType);
     }
 
+    async redraw() {
+        try {
+            this.updateData();
+            this.view.fileTreeData = this.fileTreeData;
+            this.view.redraw();
+        } catch (err) {
+            console.log(err);
+        }
+    }
+
     async createFileTreeInFolder(folderPath: string) {
         // 获取所有文件
         const allFiles = this.app.vault.getFiles();
@@ -609,9 +619,9 @@ class WebdavFileExplorerSettingTab extends PluginSettingTab {
                 text.setValue(this.plugin.webdavClient.webdavConfig.address.toString());
                 text.inputEl.onblur = (e: FocusEvent) => {
                     this.plugin.webdavClient.webdavConfig.address = (e.target as HTMLInputElement).value;
-                    this.plugin.updateData();
-                    this.plugin.view.fileTreeData = this.plugin.fileTreeData;
-                    this.plugin.view.redraw();
+
+                    this.plugin.redraw();
+
                     this.plugin.saveData();
                 }
             });
@@ -624,9 +634,9 @@ class WebdavFileExplorerSettingTab extends PluginSettingTab {
                 text.setValue(this.plugin.webdavClient.webdavConfig.username);
                 text.inputEl.onblur = (e: FocusEvent) => {
                     this.plugin.webdavClient.webdavConfig.username = (e.target as HTMLInputElement).value;
-                    this.plugin.updateData();
-                    this.plugin.view.fileTreeData = this.plugin.fileTreeData;
-                    this.plugin.view.redraw();
+
+                    this.plugin.redraw();
+
                     this.plugin.saveData();
                 }
             });
@@ -639,9 +649,9 @@ class WebdavFileExplorerSettingTab extends PluginSettingTab {
                 text.setValue(this.plugin.webdavClient.webdavConfig.password);
                 text.inputEl.onblur = (e: FocusEvent) => {
                     this.plugin.webdavClient.webdavConfig.password = (e.target as HTMLInputElement).value;
-                    this.plugin.updateData();
-                    this.plugin.view.fileTreeData = this.plugin.fileTreeData;
-                    this.plugin.view.redraw();
+
+                    this.plugin.redraw();
+
                     this.plugin.saveData();
                 }
             });
@@ -654,9 +664,9 @@ class WebdavFileExplorerSettingTab extends PluginSettingTab {
                 text.setValue(this.plugin.webdavClient.webdavConfig.remoteBaseDir);
                 text.inputEl.onblur = (e: FocusEvent) => {
                     this.plugin.webdavClient.webdavConfig.remoteBaseDir = (e.target as HTMLInputElement).value;
-                    this.plugin.updateData();
-                    this.plugin.view.fileTreeData = this.plugin.fileTreeData;
-                    this.plugin.view.redraw();
+
+                    this.plugin.redraw();
+
                     this.plugin.saveData();
                 }
             });
@@ -669,9 +679,9 @@ class WebdavFileExplorerSettingTab extends PluginSettingTab {
                 text.setValue(this.plugin.data.rootFolderPath);
                 text.inputEl.onblur = (e: FocusEvent) => {
                     this.plugin.data.rootFolderPath = (e.target as HTMLInputElement).value;
-                    this.plugin.updateData();
-                    this.plugin.view.fileTreeData = this.plugin.fileTreeData;
-                    this.plugin.view.redraw();
+
+                    this.plugin.redraw();
+
                     this.plugin.saveData();
                 }
             });
