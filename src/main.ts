@@ -436,7 +436,12 @@ export default class WebdavFileExplorerPlugin extends Plugin {
         this.webdavClient = new MyWebdavClient();
 
         // 初始化
-        await this.updateData();
+        try {
+            // some code that might throw different errors
+            await this.updateData();
+        } catch (error) {
+            console.error("Data not ready.", error);
+        }
 
         this.registerView(
             WebdavListViewType,
@@ -665,21 +670,5 @@ class WebdavFileExplorerSettingTab extends PluginSettingTab {
                     this.plugin.saveData();
                 }
             });
-    }
-}
-
-class SampleModal extends Modal {
-    constructor(app: App) {
-        super(app);
-    }
-
-    onOpen() {
-        const { contentEl } = this;
-        contentEl.setText('Woah!');
-    }
-
-    onClose() {
-        const { contentEl } = this;
-        contentEl.empty();
     }
 }
