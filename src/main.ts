@@ -111,6 +111,7 @@ class MyWebdavClient {
 
         let contents = [] as FileStat[];
         if (depth === "auto_1" || depth === "manual_1") {
+        // if (true) {
             // the remote doesn't support infinity propfind,
             // we need to do a bfs here
             const q = new Queue([`/${remotePath}`]);
@@ -121,7 +122,7 @@ class MyWebdavClient {
                     itemsToFetch.push(q.pop());
                 }
                 const itemsToFetchChunks = chunk(itemsToFetch, CHUNK_SIZE);
-                // log.debug(itemsToFetchChunks);
+                // console.log(itemsToFetchChunks);
                 const subContents = [] as FileStat[];
                 for (const singleChunk of itemsToFetchChunks) {
                     const r = singleChunk.map((x: any) => {
@@ -160,7 +161,7 @@ class MyWebdavClient {
             )) as FileStat[];
         }
         const fileTree = createFileTreeFromWebdav(contents);
-        // console.log(fileTree);
+        console.log(fileTree);
         return fileTree;
     }
 
@@ -310,7 +311,11 @@ class WebdavFilesListView extends ItemView {
     }
 
     constructList(data: any, parentEl: any) {
-        for (const key in data) {
+        // @note 检查这里的 notes 是否正确
+        const filted_keys = Object.keys(data).filter(key => (typeof data[key] === 'object') && (data[key] !== null));
+        for (const key of filted_keys) {
+            // console.log("Debug: " + key); // @note 检查这里的 keys 是否正确
+
             if (data[key].type === "directory") {
                 let dirLi = parentEl.createEl('li', { cls: 'file-list-item dir' });
                 let indicator = dirLi.createEl('span', { text: '\u25B6', cls: 'indicator', style: 'font-size: 0.1em;' }); // 添加指示符并且降低其大小
@@ -533,10 +538,14 @@ export default class WebdavFileExplorerPlugin extends Plugin {
 
     // This function parses the file tree and creates .md files for each file
     async createFileStructure(rootPath: string, fileTree: any, path: string, vault: any) {
-        for (const key in fileTree) {
+        console.log("Creating file structure for: " + path);
+        // @note 检查这里的 fileTree 是否正确
+        // @note 过滤掉属性值，剩下的只有文件夹或文件
+        const filted_keys = Object.keys(fileTree).filter(key => (typeof fileTree[key] === 'object') && (fileTree[key] !== null));
+        for (const key of filted_keys) {
             const item = fileTree[key];
             if (item.type === "directory") {
-                // console.log("Creating directory: " + path + "/" + item.basename);
+                console.log("Creating directory: " + path + "/" + item.basename);
                 await this.createFileStructure(rootPath, item, path + "/" + item.basename, vault);
             } else if (item.type === "file") {
                 const filePath = path + "/" + item.basename + ".md";
@@ -564,6 +573,8 @@ export default class WebdavFileExplorerPlugin extends Plugin {
         const fileTree = await this.webdavClient.listFromRemote("auto_1");
         const [uniqueMember] = Object.values(fileTree);
         this.fileTreeData = uniqueMember;
+
+        // console.log(uniqueMember);
 
         // 创建文件结构
         const vaultPath = this.app.vault.adapter.getBasePath();
