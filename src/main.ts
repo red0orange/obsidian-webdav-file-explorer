@@ -475,10 +475,10 @@ export default class WebdavFileExplorerPlugin extends Plugin {
             },
         );
 
-        // 当 layout 准备好时，构建 view
-        this.app.workspace.onLayoutReady(() => {
-            this.initView();
-        });
+        // // 当 layout 准备好时，构建 view
+        // this.app.workspace.onLayoutReady(() => {
+        //     this.initView();
+        // });
 
         // 注册设置页面
         this.addSettingTab(new WebdavFileExplorerSettingTab(this.app, this));
@@ -585,6 +585,7 @@ export default class WebdavFileExplorerPlugin extends Plugin {
     private readonly initView = async (): Promise<void> => {
         let leaf: WorkspaceLeaf | undefined;
         for (leaf of this.app.workspace.getLeavesOfType(WebdavListViewType)) {
+            console.error(leaf.view);
             if (leaf.view instanceof WebdavFilesListView) {
                 console.log('already exists');
                 return;
